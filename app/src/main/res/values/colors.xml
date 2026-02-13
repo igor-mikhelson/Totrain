@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="light_gray">#F5F5F5</color>
+    <color name="medium_gray">#E0E0E0</color>
+    <color name="dark_theme_highlight">#40FFFFFF</color>
+    <color name="record_red">#FFCC0000</color>
+    <color name="toolbar_color">#FFCC0000</color>
+    <color name="toolbar_title_color">#FFFFFF00</color>
+    <color name="status_bar_color">#FF880000</color>
+    <color name="timer_color">#FF00FF00</color> <!-- Green -->
+    <color name="selected_item">#33FFFFFF</color>
+
+</resources>
