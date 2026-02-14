@@ -1,5 +1,6 @@
 package com.example.totrain
 
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,25 +13,17 @@ class WorkoutDayAdapter(
 ) : RecyclerView.Adapter<WorkoutDayAdapter.WorkoutDayViewHolder>() {
 
     private var days: List<WorkoutDay> = emptyList()
-    private var highlightedPosition: Int = -1
+    private var highlightedPosition = -1
 
-    inner class WorkoutDayViewHolder(itemView: View) :
-        RecyclerView.ViewHolder(itemView) {
+    // ViewHolder остается без изменений
+    class WorkoutDayViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val nameTextView: TextView = itemView.findViewById(R.id.textViewDayName)
+        private val descriptionTextView: TextView = itemView.findViewById(R.id.textViewDayDescription)
 
-        private val dayName: TextView = itemView.findViewById(R.id.textViewDayName)
-        private val dayDescription: TextView = itemView.findViewById(R.id.textViewDayDescription)
-
-        fun bind(day: WorkoutDay, position: Int) {
-            dayName.text = day.name
-            dayDescription.text = day.description
-
-            itemView.alpha =
-                if (position == highlightedPosition) 1.0f else 0.5f
-
-            itemView.setOnClickListener {
-                onItemClicked(day)
-            }
-
+        fun bind(day: WorkoutDay, onItemClicked: (WorkoutDay) -> Unit, onItemLongClicked: (WorkoutDay) -> Unit) {
+            nameTextView.text = day.name
+            descriptionTextView.text = day.description
+            itemView.setOnClickListener { onItemClicked(day) }
             itemView.setOnLongClickListener {
                 onItemLongClicked(day)
                 true
@@ -39,20 +32,35 @@ class WorkoutDayAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): WorkoutDayViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.list_item_day, parent, false)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.list_item_day, parent, false)
         return WorkoutDayViewHolder(view)
     }
 
+    override fun getItemCount() = days.size
+
     override fun onBindViewHolder(holder: WorkoutDayViewHolder, position: Int) {
-        holder.bind(days[position], position)
+        val day = days[position]
+        holder.bind(day, onItemClicked, onItemLongClicked)
+
+        val card = holder.itemView as com.google.android.material.card.MaterialCardView
+
+        if (position == highlightedPosition) {
+            card.setCardBackgroundColor(Color.parseColor("#E3F2FD")) // мягкая подсветка
+            card.strokeWidth = 3
+            card.strokeColor = Color.parseColor("#2196F3")
+        } else {
+            card.setCardBackgroundColor(Color.WHITE)
+            card.strokeWidth = 1
+            card.strokeColor = Color.parseColor("#DDDDDD")
+        }
     }
 
-    override fun getItemCount(): Int = days.size
-
+    /**
+     * Обновляет данные в адаптере и позицию для подсветки.
+     */
     fun updateData(newDays: List<WorkoutDay>, newHighlightedPosition: Int) {
-        days = newDays
-        highlightedPosition = newHighlightedPosition
+        this.days = newDays
+        this.highlightedPosition = newHighlightedPosition
         notifyDataSetChanged()
     }
 }

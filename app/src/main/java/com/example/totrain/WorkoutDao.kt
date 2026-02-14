@@ -52,7 +52,7 @@ interface WorkoutDao {
     @Query("SELECT * FROM exercises WHERE dayId = :dayId ORDER BY id ASC")
     fun getExercisesForDay(dayId: Int): Flow<List<Exercise>>
 
-    @Query("SELECT * FROM exercise_sets WHERE exerciseId = :exerciseId ORDER BY timestamp DESC")
+    @Query("SELECT * FROM exercise_sets WHERE exerciseId = :exerciseId ORDER BY timestamp ASC")
     fun getAllExerciseSetsForExercise(exerciseId: Int): Flow<List<ExerciseSet>>
 
     @Query("SELECT MAX(timestamp) FROM exercise_sets WHERE exerciseId = :exerciseId")

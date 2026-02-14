@@ -18,40 +18,101 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var workoutAdapter: WorkoutDayAdapter
+    private var highlightedDayId: Int? = null
+    private var isInitialLogicDone = false
+    private var isDialogShowing = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        setupToolbar()
+        setupRecyclerView()
+        setupObservers()
+    }
+
+    private fun setupToolbar() {
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
+    }
 
+    private fun setupRecyclerView() {
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewDays)
-
         workoutAdapter = WorkoutDayAdapter(
             onItemClicked = { day -> navigateToExercises(day) },
             onItemLongClicked = { day -> showEditDayDialog(day) }
         )
-
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = workoutAdapter
+    }
 
+    private fun setupObservers() {
         workoutViewModel.allDays.observe(this) { days ->
-            days?.let {
+            if (days.isNullOrEmpty()) {
+                workoutAdapter.updateData(emptyList(), -1)
+                return@observe
+            }
 
-                val calendar = Calendar.getInstance()
-                val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
-
-                val highlightedPosition = when (dayOfWeek) {
-                    Calendar.MONDAY -> it.indexOfFirst { day -> day.name == "Понедельник" }
-                    Calendar.WEDNESDAY -> it.indexOfFirst { day -> day.name == "Среда" }
-                    Calendar.FRIDAY -> it.indexOfFirst { day -> day.name == "Пятница" }
-                    else -> -1
-                }
-
-                workoutAdapter.updateData(it, highlightedPosition)
+            if (!isInitialLogicDone) {
+                checkTodayAndAskIfNeeded(days)
+                isInitialLogicDone = true
+            } else {
+                // Для последующих обновлений (например, после редактирования)
+                // просто обновляем список, сохраняя подсветку.
+                val currentPosition = days.indexOfFirst { it.id == highlightedDayId }
+                workoutAdapter.updateData(days, currentPosition)
             }
         }
+    }
+
+    /**
+     * Определяет текущий день, подсвечивает его или показывает диалог выбора.
+     * Выполняется один раз при запуске.
+     */
+    private fun checkTodayAndAskIfNeeded(days: List<WorkoutDay>) {
+        val calendar = Calendar.getInstance()
+        val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+
+        val today = when (dayOfWeek) {
+            Calendar.MONDAY -> days.find { it.name == "Понедельник" }
+            Calendar.WEDNESDAY -> days.find { it.name == "Среда" }
+            Calendar.FRIDAY -> days.find { it.name == "Пятница" }
+            else -> null
+        }
+
+        if (today != null) {
+            // Сегодня тренировочный день, подсвечиваем его
+            highlightedDayId = today.id
+            val position = days.indexOf(today)
+            workoutAdapter.updateData(days, position)
+        } else {
+            // Сегодня нет тренировки, показываем диалог выбора
+            showDayChooserDialog(days)
+        }
+    }
+
+    /**
+     * Показывает диалог для выбора тренировочного дня.
+     */
+    private fun showDayChooserDialog(days: List<WorkoutDay>) {
+        if (isDialogShowing) return
+        isDialogShowing = true
+
+        val dayDescriptions = days.map { it.description }.toTypedArray()
+
+        AlertDialog.Builder(this, R.style.AlertDialogTheme)
+            .setTitle("Какой тренировочный день вы хотите выбрать?")
+            .setItems(dayDescriptions) { _, which ->
+
+                val selectedDay = days[which]
+                navigateToExercises(selectedDay)
+
+                highlightedDayId = selectedDay.id
+                workoutAdapter.updateData(days, which)
+            }
+            .setOnDismissListener { isDialogShowing = false }
+            .setCancelable(false) // Не даем закрыть диалог без выбора
+            .show()
     }
 
     private fun showEditDayDialog(day: WorkoutDay) {
