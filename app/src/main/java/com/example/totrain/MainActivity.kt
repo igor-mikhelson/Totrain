@@ -102,13 +102,14 @@ class MainActivity : AppCompatActivity() {
 
         AlertDialog.Builder(this, R.style.AlertDialogTheme)
             .setTitle("Какой тренировочный день вы хотите выбрать?")
-            .setItems(dayDescriptions) { _, which ->
-
+            .setItems(dayDescriptions) { dialog, which ->
                 val selectedDay = days[which]
-                navigateToExercises(selectedDay)
-
                 highlightedDayId = selectedDay.id
                 workoutAdapter.updateData(days, which)
+
+                dialog.dismiss()
+
+                navigateToExercises(selectedDay)
             }
             .setOnDismissListener { isDialogShowing = false }
             .setCancelable(false) // Не даем закрыть диалог без выбора
@@ -147,5 +148,10 @@ class MainActivity : AppCompatActivity() {
         intent.putExtra("DAY_ID", day.id)
         intent.putExtra("DAY_NAME", day.description)
         startActivity(intent)
+
+        overridePendingTransition(
+            R.anim.fade_in,
+            R.anim.fade_out
+        )
     }
 }

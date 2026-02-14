@@ -9,6 +9,8 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import android.widget.CheckBox
+
 
 class ExerciseSetAdapter(context: Context, sets: List<ExerciseSet>, private var historicMaxWeight: Int) :
     ArrayAdapter<ExerciseSet>(context, 0, sets) {
@@ -18,7 +20,12 @@ class ExerciseSetAdapter(context: Context, sets: List<ExerciseSet>, private var 
 
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
         val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.list_item_set, parent, false)
-        val set = getItem(position)
+        val checkBox = view.findViewById<CheckBox>(R.id.checkbox_set)
+
+        checkBox.visibility = if (isSelectionMode) View.VISIBLE else View.GONE
+        val set = getItem(position) ?: return view
+        checkBox.isChecked = selectedItems[position]
+
 
         val repsTextView = view.findViewById<TextView>(R.id.textViewReps)
         val weightTextView = view.findViewById<TextView>(R.id.textViewWeight)
