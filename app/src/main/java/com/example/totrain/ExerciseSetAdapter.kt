@@ -31,7 +31,7 @@ class ExerciseSetAdapter(context: Context, sets: List<ExerciseSet>, private var 
                 weightTextView.setTextColor(ContextCompat.getColor(context, R.color.record_red))
                 weightTextView.setTypeface(null, Typeface.BOLD)
             } else {
-                weightTextView.setTextColor(ContextCompat.getColor(context, android.R.color.white))
+                weightTextView.setTextColor(ContextCompat.getColor(context, android.R.color.black))
                 weightTextView.setTypeface(null, Typeface.NORMAL)
             }
         }
