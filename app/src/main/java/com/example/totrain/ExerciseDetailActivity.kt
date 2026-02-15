@@ -3,6 +3,7 @@ package com.example.totrain
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -28,7 +29,13 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
+import java.util.Locale
 
 class ExerciseDetailActivity : AppCompatActivity() {
 
@@ -63,6 +70,7 @@ class ExerciseDetailActivity : AppCompatActivity() {
         val listView = findViewById<ListView>(R.id.listViewSets)
         val layoutLastWorkout = findViewById<LinearLayout>(R.id.layoutLastWorkout)
         val textViewLastWorkoutSets = findViewById<TextView>(R.id.textViewLastWorkoutSets)
+        val textViewLastWorkoutLabel = findViewById<TextView>(R.id.textViewLastWorkoutLabel)
 
         val footer = layoutInflater.inflate(R.layout.add_set_footer, listView, false)
         listView.addFooterView(footer, null, false)
@@ -105,6 +113,22 @@ class ExerciseDetailActivity : AppCompatActivity() {
             val lastWorkoutDate = groupedByDate.keys.maxOrNull()
 
             if (lastWorkoutDate != null) {
+                val formattedDate = formatLastWorkoutDate(lastWorkoutDate)
+                val fullText = getString(R.string.last_workout_label, formattedDate)
+                val spannable = SpannableStringBuilder(fullText)
+                val dateColor = Color.parseColor("#2E7D32")
+
+                val startIndex = fullText.indexOf(formattedDate)
+                if (startIndex != -1) {
+                    spannable.setSpan(
+                        ForegroundColorSpan(dateColor),
+                        startIndex,
+                        startIndex + formattedDate.length,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
+                textViewLastWorkoutLabel.text = spannable
+
                 val lastWorkoutSets = groupedByDate[lastWorkoutDate]
                     ?.sortedBy { it.timestamp }
                     ?: emptyList()
@@ -114,12 +138,12 @@ class ExerciseDetailActivity : AppCompatActivity() {
                 val maxWeightBeforeLastWorkout =
                     setsBeforeLastWorkout.maxByOrNull { it.weight }?.weight ?: 0
 
-                val spannable = buildSpannableForLastWorkout(
+                val spannableSets = buildSpannableForLastWorkout(
                     lastWorkoutSets,
                     maxWeightBeforeLastWorkout
                 )
 
-                textViewLastWorkoutSets.text = spannable
+                textViewLastWorkoutSets.text = spannableSets
                 layoutLastWorkout.visibility = View.VISIBLE
             } else {
                 layoutLastWorkout.visibility = View.GONE
@@ -127,6 +151,11 @@ class ExerciseDetailActivity : AppCompatActivity() {
 
 
             adapter.updateData(todaySets, historicMaxWeight)
+        }
+
+        val fabStartTimer = findViewById<FloatingActionButton>(R.id.fab_start_timer)
+        fabStartTimer.setOnClickListener {
+            startTimer()
         }
 
         val addOrUpdateAction = {
@@ -142,7 +171,7 @@ class ExerciseDetailActivity : AppCompatActivity() {
                         timestamp = System.currentTimeMillis()
                     )
                     workoutViewModel.insertExerciseSet(set)
-                    startTimer()
+                    //startTimer()
                     hideKeyboard()
                 }
             } else {
@@ -366,5 +395,22 @@ class ExerciseDetailActivity : AppCompatActivity() {
         }
 
         timerDialog?.show()
+    }
+
+    private fun formatLastWorkoutDate(timestamp: Long): String {
+        val lastWorkoutLocalDate = Instant.ofEpochMilli(timestamp)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+
+        val today = LocalDate.now(ZoneId.systemDefault())
+
+        val pattern = if (lastWorkoutLocalDate.year == today.year) {
+            "d MMMM"
+        } else {
+            "d MMMM yyyy"
+        }
+        val formatter = DateTimeFormatter.ofPattern(pattern, Locale("ru"))
+
+        return lastWorkoutLocalDate.format(formatter)
     }
 }

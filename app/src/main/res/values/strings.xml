@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Физкульт</string>
+    <string name="last_workout_label">Прошлая тренировка: %1$s</string>
+    <string name="repetitions_label">Повторения</string>
+    <string name="weight_kg_label">Вес (кг)</string>
+    <string name="start_rest_timer">Запустить таймер отдыха</string>
 </resources>
