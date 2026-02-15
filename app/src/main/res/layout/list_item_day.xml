@@ -34,8 +34,10 @@
             android:layout_height="wrap_content"
             android:textAlignment="center"
             android:gravity="center"
+            android:textColor="@android:color/darker_gray"
             android:textSize="14sp"
-            android:alpha="0.7" />
+
+             />
 
 
     </LinearLayout>

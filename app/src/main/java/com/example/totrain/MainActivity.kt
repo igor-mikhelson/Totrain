@@ -80,15 +80,18 @@ class MainActivity : AppCompatActivity() {
             else -> null
         }
 
-        if (today != null) {
-            // Сегодня тренировочный день, подсвечиваем его
+        val position = if (today != null) {
             highlightedDayId = today.id
-            val position = days.indexOf(today)
-            workoutAdapter.updateData(days, position)
+            days.indexOf(today)
         } else {
-            // Сегодня нет тренировки, показываем диалог выбора
-            showDayChooserDialog(days)
+            -1
         }
+
+        workoutAdapter.updateData(
+            newDays = days,
+            newHighlightedPosition = position
+        )
+
     }
 
     /**
