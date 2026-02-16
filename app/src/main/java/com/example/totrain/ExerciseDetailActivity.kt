@@ -148,9 +148,6 @@ class ExerciseDetailActivity : AppCompatActivity() {
             } else {
                 layoutLastWorkout.visibility = View.GONE
             }
-
-
-            adapter.updateData(todaySets, historicMaxWeight)
         }
 
         val fabStartTimer = findViewById<FloatingActionButton>(R.id.fab_start_timer)

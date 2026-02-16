@@ -40,4 +40,8 @@ class WorkoutRepository(private val workoutDao: WorkoutDao) {
     suspend fun deleteExerciseSets(sets: List<ExerciseSet>) {
         workoutDao.deleteExerciseSets(sets)
     }
+    suspend fun deleteOldData(cutoff: Long) {
+        workoutDao.deleteOldData(cutoff)
+    }
+
 }

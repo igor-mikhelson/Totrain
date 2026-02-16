@@ -29,6 +29,9 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
     fun deleteExercise(exercise: Exercise) = viewModelScope.launch {
         repository.deleteExercise(exercise)
     }
+    fun deleteOldData(cutoff: Long) = viewModelScope.launch {
+        repository.deleteOldData(cutoff)
+    }
 
     fun updateDay(day: WorkoutDay) = viewModelScope.launch {
         repository.updateDay(day)

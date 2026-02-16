@@ -37,6 +37,10 @@ interface WorkoutDao {
     @Update
     suspend fun updateWorkoutDay(day: WorkoutDay)
 
+    @Query("DELETE FROM exercise_sets WHERE timestamp < :cutoff")
+    suspend fun deleteOldData(cutoff: Long)
+
+
     @Delete
     suspend fun deleteExercise(exercise: Exercise)
 
