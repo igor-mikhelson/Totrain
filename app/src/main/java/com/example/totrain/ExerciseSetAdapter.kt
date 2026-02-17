@@ -6,31 +6,61 @@ import android.util.SparseBooleanArray
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
+import android.widget.CheckBox
 import android.widget.TextView
 import androidx.core.content.ContextCompat
-import android.widget.CheckBox
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
 
-
-class ExerciseSetAdapter(context: Context, sets: List<ExerciseSet>, private var historicMaxWeight: Int) :
-    ArrayAdapter<ExerciseSet>(context, 0, sets) {
+class ExerciseSetAdapter(
+    private val context: Context,
+    private val listener: OnItemInteractionListener,
+    private var historicMaxWeight: Int
+) : ListAdapter<ExerciseSet, ExerciseSetAdapter.ExerciseSetViewHolder>(ExerciseSetDiffCallback()) {
 
     private val selectedItems = SparseBooleanArray()
     private var isSelectionMode = false
 
-    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-        val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.list_item_set, parent, false)
-        val checkBox = view.findViewById<CheckBox>(R.id.checkbox_set)
+    interface OnItemInteractionListener {
+        fun onItemClick(position: Int)
+        fun onItemLongClick(position: Int)
+    }
 
-        checkBox.visibility = if (isSelectionMode) View.VISIBLE else View.GONE
-        val set = getItem(position) ?: return view
-        checkBox.isChecked = selectedItems[position]
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ExerciseSetViewHolder {
+        val view = LayoutInflater.from(context).inflate(R.layout.list_item_set, parent, false)
+        return ExerciseSetViewHolder(view)
+    }
 
+    override fun onBindViewHolder(holder: ExerciseSetViewHolder, position: Int) {
+        val isSelected = selectedItems.get(position, false)
+        val set = getItem(position)
+        holder.bind(set, isSelected, isSelectionMode)
 
-        val repsTextView = view.findViewById<TextView>(R.id.textViewReps)
-        val weightTextView = view.findViewById<TextView>(R.id.textViewWeight)
+    }
 
-        if (set != null) {
+    inner class ExerciseSetViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val repsTextView: TextView = itemView.findViewById(R.id.textViewReps)
+        private val weightTextView: TextView = itemView.findViewById(R.id.textViewWeight)
+        private val checkBox: CheckBox = itemView.findViewById(R.id.checkbox_set)
+
+        init {
+            itemView.setOnClickListener {
+                val position = adapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    listener.onItemClick(position)
+                }
+            }
+            itemView.setOnLongClickListener {
+                val position = adapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    listener.onItemLongClick(position)
+                }
+                true
+            }
+        }
+
+        fun bind(set: ExerciseSet, isSelected: Boolean, isSelectionMode: Boolean) {
             repsTextView.text = "${set.reps} повт."
             weightTextView.text = "${set.weight} кг"
 
@@ -41,47 +71,79 @@ class ExerciseSetAdapter(context: Context, sets: List<ExerciseSet>, private var 
                 weightTextView.setTextColor(ContextCompat.getColor(context, android.R.color.black))
                 weightTextView.setTypeface(null, Typeface.NORMAL)
             }
+
+            // Управление состоянием выбора
+            checkBox.isChecked = isSelected
+
+            if (isSelectionMode) {
+                checkBox.visibility = View.VISIBLE
+            } else {
+                checkBox.visibility = View.GONE
+            }
+
+            // Устанавливаем цвет фона в зависимости от того, выбран ли элемент
+            if (isSelected) {
+                itemView.setBackgroundColor(ContextCompat.getColor(context, R.color.selected_item))
+            } else {
+                itemView.setBackgroundColor(ContextCompat.getColor(context, android.R.color.transparent))
+            }
         }
-
-        view.setBackgroundColor(
-            if (selectedItems[position]) ContextCompat.getColor(context, R.color.selected_item) else ContextCompat.getColor(context, android.R.color.transparent)
-        )
-
-        return view
-    }
-
-    fun updateData(newSets: List<ExerciseSet>, newHistoricMaxWeight: Int) {
-        this.historicMaxWeight = newHistoricMaxWeight
-        clear()
-        addAll(newSets)
     }
 
     fun setSelectionMode(enabled: Boolean) {
+        val wasInSelectionMode = isSelectionMode
         isSelectionMode = enabled
-        if (!enabled) {
-            selectedItems.clear()
+        if (wasInSelectionMode && !isSelectionMode) {
+            clearSelection()
+        } else if (isSelectionMode) {
+            notifyDataSetChanged() // Invalidate all items to show checkboxes
         }
-        notifyDataSetChanged()
     }
 
     fun toggleSelection(position: Int) {
-        if (selectedItems[position]) {
+        if (selectedItems.get(position, false)) {
             selectedItems.delete(position)
         } else {
             selectedItems.put(position, true)
         }
+        notifyItemChanged(position)
+    }
+
+
+    fun clearSelection() {
+        selectedItems.clear()
         notifyDataSetChanged()
     }
 
+
     fun getSelectedCount(): Int = selectedItems.size()
 
-    fun getSelectedItems(): List<ExerciseSet> {
-        val items = mutableListOf<ExerciseSet>()
-        for (i in 0 until count) {
-            if (selectedItems[i]) {
-                getItem(i)?.let { items.add(it) }
-            }
+    private fun getSelectedPositions(): List<Int> {
+        val items = mutableListOf<Int>()
+        for (i in 0 until selectedItems.size()) {
+            items.add(selectedItems.keyAt(i))
         }
         return items
+    }
+
+    fun getSelectedItems(): List<ExerciseSet> {
+        return getSelectedPositions().mapNotNull { getItem(it) }
+    }
+
+    private fun isSelected(position: Int): Boolean = selectedItems[position]
+
+    fun updateHistoricMaxWeight(newHistoricMaxWeight: Int) {
+        historicMaxWeight = newHistoricMaxWeight
+        notifyDataSetChanged() // Assuming this can affect all visible items
+    }
+}
+
+class ExerciseSetDiffCallback : DiffUtil.ItemCallback<ExerciseSet>() {
+    override fun areItemsTheSame(oldItem: ExerciseSet, newItem: ExerciseSet): Boolean {
+        return oldItem.id == newItem.id
+    }
+
+    override fun areContentsTheSame(oldItem: ExerciseSet, newItem: ExerciseSet): Boolean {
+        return oldItem == newItem
     }
 }

@@ -10,7 +10,7 @@
     <color name="toolbar_title_color">#FFFFFF00</color>
     <color name="status_bar_color">#FF880000</color>
     <color name="timer_color">#FF00FF00</color> <!-- Green -->
-    <color name="selected_item">#33FFFFFF</color>
+    <color name="selected_item">#E0E0E0</color> <!-- Changed from transparent white -->
     <color name="card_background">#FFD3D3D3</color>
 
 </resources>

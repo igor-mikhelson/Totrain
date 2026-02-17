@@ -32,12 +32,7 @@ class MainActivity : AppCompatActivity() {
         setupRecyclerView()
         setupObservers()
 
-        val cutoff = LocalDate.now()
-            .atStartOfDay(ZoneId.systemDefault())
-            .toInstant()
-            .toEpochMilli()
 
-        workoutViewModel.deleteOldData(cutoff)
     }
     private fun setupToolbar() {
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)

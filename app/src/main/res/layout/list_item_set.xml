@@ -7,7 +7,8 @@
     android:paddingEnd="16dp"
     android:paddingTop="8dp"
     android:paddingBottom="8dp"
-    android:gravity="center_vertical">
+    android:gravity="center_vertical"
+    android:background="?android:attr/selectableItemBackground">
 
     <CheckBox
         android:id="@+id/checkbox_set"
@@ -15,7 +16,7 @@
         android:layout_height="wrap_content"
         android:clickable="false"
         android:focusable="false"
-        android:visibility="gone" /> <!-- Изначально скрыт -->
+        android:visibility="gone" /> <!-- Будет управляться программно -->
 
     <TextView
         android:id="@+id/textViewReps"

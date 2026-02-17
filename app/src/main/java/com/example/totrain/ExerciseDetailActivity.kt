@@ -17,17 +17,17 @@ import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
-import android.widget.AbsListView
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
-import android.widget.ListView
 import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import java.time.Instant
@@ -37,7 +37,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Locale
 
-class ExerciseDetailActivity : AppCompatActivity() {
+class ExerciseDetailActivity : AppCompatActivity(), ExerciseSetAdapter.OnItemInteractionListener {
 
     private val workoutViewModel: WorkoutViewModel by viewModels {
         WorkoutViewModelFactory((application as WorkoutApplication).repository)
@@ -45,11 +45,44 @@ class ExerciseDetailActivity : AppCompatActivity() {
 
     private lateinit var adapter: ExerciseSetAdapter
     private var exerciseId: Int = -1
-    private var historicMaxWeight: Int = 0
+    private var shouldRefocusOnInsert = false
 
     private var actionMode: ActionMode? = null
     private var timer: CountDownTimer? = null
     private var timerDialog: Dialog? = null
+    private lateinit var addButton: Button
+
+    private val actionModeCallback = object : ActionMode.Callback {
+
+        override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+            mode.menuInflater.inflate(R.menu.menu_action_mode, menu)
+            adapter.setSelectionMode(true)
+            addButton.text = "Применить"
+            return true
+        }
+
+        override fun onPrepareActionMode(mode: ActionMode, menu: Menu) = false
+
+        override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+            return when (item.itemId) {
+                R.id.action_delete -> {
+                    val selectedItems = adapter.getSelectedItems()
+                    if (selectedItems.isNotEmpty()) {
+                        showDeleteConfirmationDialog(selectedItems, mode)
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
+
+        override fun onDestroyActionMode(mode: ActionMode) {
+            adapter.setSelectionMode(false)
+            adapter.clearSelection()
+            actionMode = null
+            addButton.text = "Добавить"
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,7 +92,6 @@ class ExerciseDetailActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-
         exerciseId = intent.getIntExtra("EXERCISE_ID", -1)
         val exerciseName = intent.getStringExtra("EXERCISE_NAME")
         supportActionBar?.title = exerciseName
@@ -67,19 +99,19 @@ class ExerciseDetailActivity : AppCompatActivity() {
         val textViewExerciseName = findViewById<TextView>(R.id.textViewExerciseName)
         textViewExerciseName.text = exerciseName
 
-        val listView = findViewById<ListView>(R.id.listViewSets)
+        val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewSets)
         val layoutLastWorkout = findViewById<LinearLayout>(R.id.layoutLastWorkout)
         val textViewLastWorkoutSets = findViewById<TextView>(R.id.textViewLastWorkoutSets)
         val textViewLastWorkoutLabel = findViewById<TextView>(R.id.textViewLastWorkoutLabel)
 
-        val footer = layoutInflater.inflate(R.layout.add_set_footer, listView, false)
-        listView.addFooterView(footer, null, false)
+        val footer = findViewById<View>(R.id.footer_container)
         val repsEditText = footer.findViewById<EditText>(R.id.editTextNewReps)
         val weightEditText = footer.findViewById<EditText>(R.id.editTextNewWeight)
-        val addButton = footer.findViewById<Button>(R.id.buttonAddSet)
+        addButton = footer.findViewById(R.id.buttonAddSet)
 
-        adapter = ExerciseSetAdapter(this, mutableListOf(), 0)
-        listView.adapter = adapter
+        adapter = ExerciseSetAdapter(this, this, 0)
+        recyclerView.adapter = adapter
+        recyclerView.layoutManager = LinearLayoutManager(this)
 
         workoutViewModel.getAllExerciseSetsForExercise(exerciseId).observe(this) { allSets ->
             val todayStart = Calendar.getInstance().apply {
@@ -92,14 +124,28 @@ class ExerciseDetailActivity : AppCompatActivity() {
             val todaySets = allSets.filter { it.timestamp >= todayStart }
             val pastSets = allSets.filter { it.timestamp < todayStart }
 
-            adapter.updateData(todaySets, pastSets.maxByOrNull { it.weight }?.weight ?: 0)
+            val commitCallback: Runnable? = if (shouldRefocusOnInsert) {
+                Runnable {
+                    if (adapter.itemCount > 0) {
+                        recyclerView.smoothScrollToPosition(adapter.itemCount - 1)
+                    }
+                    repsEditText.requestFocus()
+                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    imm.showSoftInput(repsEditText, InputMethodManager.SHOW_IMPLICIT)
+                    shouldRefocusOnInsert = false
+                }
+            } else {
+                null
+            }
+            adapter.submitList(todaySets, commitCallback)
+
+            adapter.updateHistoricMaxWeight(pastSets.maxByOrNull { it.weight }?.weight ?: 0)
 
             if (pastSets.isEmpty()) {
                 layoutLastWorkout.visibility = View.GONE
                 return@observe
             }
 
-// группируем по дате (обнуляем время)
             val groupedByDate = pastSets.groupBy { set ->
                 Calendar.getInstance().apply {
                     timeInMillis = set.timestamp
@@ -133,7 +179,6 @@ class ExerciseDetailActivity : AppCompatActivity() {
                     ?.sortedBy { it.timestamp }
                     ?: emptyList()
 
-                // максимум ДО этой тренировки
                 val setsBeforeLastWorkout = pastSets.filter { it.timestamp < lastWorkoutDate }
                 val maxWeightBeforeLastWorkout =
                     setsBeforeLastWorkout.maxByOrNull { it.weight }?.weight ?: 0
@@ -155,12 +200,14 @@ class ExerciseDetailActivity : AppCompatActivity() {
             startTimer()
         }
 
-        val addOrUpdateAction = {
+        val addOrUpdateAction: () -> Unit = {
             val newRepsStr = repsEditText.text.toString()
             val newWeightStr = weightEditText.text.toString()
 
             if (actionMode == null) {
+                // ADDING A NEW SET
                 if (newRepsStr.isNotBlank() || newWeightStr.isNotBlank()) {
+                    shouldRefocusOnInsert = true
                     val set = ExerciseSet(
                         exerciseId = exerciseId,
                         reps = newRepsStr.toIntOrNull() ?: 0,
@@ -168,10 +215,11 @@ class ExerciseDetailActivity : AppCompatActivity() {
                         timestamp = System.currentTimeMillis()
                     )
                     workoutViewModel.insertExerciseSet(set)
-                    //startTimer()
-                    hideKeyboard()
+                    repsEditText.text.clear()
+                    weightEditText.text.clear()
                 }
             } else {
+                // UPDATING EXISTING SET(S)
                 val selectedItems = adapter.getSelectedItems().toList()
                 if (selectedItems.isNotEmpty() && (newRepsStr.isNotBlank() || newWeightStr.isNotBlank())) {
                     val updatedSets = selectedItems.map {
@@ -181,16 +229,16 @@ class ExerciseDetailActivity : AppCompatActivity() {
                         )
                     }
                     workoutViewModel.updateExerciseSets(updatedSets)
-                    hideKeyboard()
-                    actionMode?.finish()
-                } else {
-                    hideKeyboard()
-                    actionMode?.finish()
                 }
-            }
 
-            repsEditText.text.clear()
-            weightEditText.text.clear()
+                // Cleanup after action mode
+                hideKeyboard()
+                repsEditText.text.clear()
+                weightEditText.text.clear()
+                repsEditText.clearFocus()
+                weightEditText.clearFocus()
+                actionMode?.finish()
+            }
         }
 
         addButton.setOnClickListener { addOrUpdateAction() }
@@ -200,13 +248,37 @@ class ExerciseDetailActivity : AppCompatActivity() {
                 true
             } else false
         }
-
-        setupMultiChoiceModeListener(listView, addButton, repsEditText)
     }
+
+    override fun onItemClick(position: Int) {
+        if (actionMode != null) {
+            toggleSelection(position)
+        }
+    }
+
+    override fun onItemLongClick(position: Int) {
+        if (actionMode == null) {
+            actionMode = startActionMode(actionModeCallback)
+        }
+        toggleSelection(position)
+    }
+
+    private fun toggleSelection(position: Int) {
+        adapter.toggleSelection(position)
+        val count = adapter.getSelectedCount()
+        if (count == 0) {
+            actionMode?.finish()
+        } else {
+            actionMode?.title = "Выбрано: $count"
+            actionMode?.invalidate()
+        }
+    }
+
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_exercise_detail, menu)
         return true
     }
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_history -> {
@@ -218,11 +290,11 @@ class ExerciseDetailActivity : AppCompatActivity() {
             else -> super.onOptionsItemSelected(item)
         }
     }
+
     private fun buildSpannableForLastWorkout(
         lastWorkoutSets: List<ExerciseSet>,
         maxWeightBefore: Int
     ): SpannableStringBuilder {
-
         val spannable = SpannableStringBuilder()
         val redColor = ContextCompat.getColor(this, R.color.record_red)
 
@@ -260,66 +332,6 @@ class ExerciseDetailActivity : AppCompatActivity() {
         return spannable
     }
 
-    private fun setupMultiChoiceModeListener(
-        listView: ListView,
-        addButton: Button,
-        repsEditText: EditText
-    ) {
-        listView.choiceMode = ListView.CHOICE_MODE_MULTIPLE_MODAL
-        listView.setMultiChoiceModeListener(object : AbsListView.MultiChoiceModeListener {
-
-            override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
-                actionMode = mode
-                mode.menuInflater.inflate(R.menu.menu_action_mode, menu)
-                adapter.setSelectionMode(true)
-                addButton.text = "Применить"
-                repsEditText.requestFocus()
-                return true
-            }
-
-            override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
-                menu.findItem(R.id.action_delete).isVisible =
-                    adapter.getSelectedCount() > 0
-                return true
-            }
-
-            override fun onActionItemClicked(
-                mode: ActionMode,
-                item: MenuItem
-            ): Boolean {
-                return when (item.itemId) {
-                    R.id.action_delete -> {
-                        showDeleteConfirmationDialog(
-                            adapter.getSelectedItems(),
-                            mode
-                        )
-                        true
-                    }
-                    else -> false
-                }
-            }
-
-            override fun onDestroyActionMode(mode: ActionMode) {
-                actionMode = null
-                adapter.setSelectionMode(false)
-                addButton.text = "Добавить"
-            }
-
-            override fun onItemCheckedStateChanged(
-                mode: ActionMode,
-                position: Int,
-                id: Long,
-                checked: Boolean
-            ) {
-                if (position < adapter.count) {
-                    adapter.toggleSelection(position)
-                    mode.title = "Выбрано: ${adapter.getSelectedCount()}"
-                    mode.invalidate()
-                }
-            }
-        })
-    }
-
     private fun showDeleteConfirmationDialog(
         setsToDelete: List<ExerciseSet>,
         mode: ActionMode
@@ -331,9 +343,7 @@ class ExerciseDetailActivity : AppCompatActivity() {
                 workoutViewModel.deleteExerciseSets(setsToDelete)
                 mode.finish()
             }
-            .setNegativeButton("Нет") { _, _ ->
-                mode.finish()
-            }
+            .setNegativeButton("Нет", null)
             .show()
     }
 
@@ -363,12 +373,9 @@ class ExerciseDetailActivity : AppCompatActivity() {
             this,
             android.R.style.Theme_Black_NoTitleBar_Fullscreen
         ).apply {
-
             setContentView(R.layout.dialog_timer)
-            val timerTextView =
-                findViewById<TextView>(R.id.dialog_timer_text)
-            val dismissButton =
-                findViewById<ImageButton>(R.id.button_dismiss_timer)
+            val timerTextView = findViewById<TextView>(R.id.dialog_timer_text)
+            val dismissButton = findViewById<ImageButton>(R.id.button_dismiss_timer)
 
             setCancelable(false)
             setCanceledOnTouchOutside(false)
@@ -378,8 +385,7 @@ class ExerciseDetailActivity : AppCompatActivity() {
                 override fun onTick(millisUntilFinished: Long) {
                     val minutes = (millisUntilFinished / 1000) / 60
                     val seconds = (millisUntilFinished / 1000) % 60
-                    timerTextView.text =
-                        String.format("%02d:%02d", minutes, seconds)
+                    timerTextView.text = String.format("%02d:%02d", minutes, seconds)
                 }
 
                 override fun onFinish() {
