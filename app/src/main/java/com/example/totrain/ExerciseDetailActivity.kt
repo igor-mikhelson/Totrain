@@ -103,6 +103,8 @@ class ExerciseDetailActivity : AppCompatActivity(), ExerciseSetAdapter.OnItemInt
         val layoutLastWorkout = findViewById<LinearLayout>(R.id.layoutLastWorkout)
         val textViewLastWorkoutSets = findViewById<TextView>(R.id.textViewLastWorkoutSets)
         val textViewLastWorkoutLabel = findViewById<TextView>(R.id.textViewLastWorkoutLabel)
+        val textViewCurrentWorkoutVolume = findViewById<TextView>(R.id.textViewCurrentWorkoutVolume)
+        val textViewCurrentWorkout1RM = findViewById<TextView>(R.id.textViewCurrentWorkout1RM)
 
         val footer = findViewById<View>(R.id.footer_container)
         val repsEditText = footer.findViewById<EditText>(R.id.editTextNewReps)
@@ -138,6 +140,20 @@ class ExerciseDetailActivity : AppCompatActivity(), ExerciseSetAdapter.OnItemInt
                 null
             }
             adapter.submitList(todaySets, commitCallback)
+
+            val currentVolume = todaySets.sumOf { set ->
+                if (set.weight > 0) set.weight * set.reps else set.reps
+            }
+            textViewCurrentWorkoutVolume.text = "Текущий объем: $currentVolume кг"
+
+            val best1RM = todaySets.maxOfOrNull { set ->
+                if (set.weight > 0) {
+                    set.weight * (1 + 0.0333 * set.reps)
+                } else {
+                    0.0
+                }
+            } ?: 0.0
+            textViewCurrentWorkout1RM.text = String.format("Лучший 1RM: %.1f кг", best1RM)
 
             adapter.updateHistoricMaxWeight(pastSets.maxByOrNull { it.weight }?.weight ?: 0)
 
@@ -327,6 +343,21 @@ class ExerciseDetailActivity : AppCompatActivity(), ExerciseSetAdapter.OnItemInt
 
         if (spannable.isNotEmpty()) {
             spannable.delete(spannable.length - 1, spannable.length)
+            
+            val totalVolume = lastWorkoutSets.sumOf { set ->
+                if (set.weight > 0) set.weight * set.reps else set.reps
+            }
+            
+            val best1RM = lastWorkoutSets.maxOfOrNull { set ->
+                if (set.weight > 0) {
+                    set.weight * (1 + 0.0333 * set.reps)
+                } else {
+                    0.0
+                }
+            } ?: 0.0
+            
+            spannable.append("\n\nОбщий объем: $totalVolume кг")
+            spannable.append("\nЛучший 1RM: ${String.format("%.1f", best1RM)} кг")
         }
 
         return spannable

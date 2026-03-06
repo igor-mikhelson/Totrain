@@ -9,8 +9,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
-import java.time.LocalDate
-import java.time.ZoneId
 import java.util.Calendar
 
 class MainActivity : AppCompatActivity() {

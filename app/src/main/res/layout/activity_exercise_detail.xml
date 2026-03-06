@@ -88,11 +88,37 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewSets"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
         app:layout_constraintTop_toBottomOf="@id/sets_header"
-
+        app:layout_constraintBottom_toTopOf="@+id/textViewCurrentWorkoutVolume"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/textViewCurrentWorkoutVolume"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:textStyle="bold"
+        android:textColor="?android:attr/textColorPrimary"
+        app:layout_constraintTop_toBottomOf="@id/recyclerViewSets"
+        app:layout_constraintBottom_toTopOf="@id/textViewCurrentWorkout1RM"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:text="Текущий объем: 0 кг" />
+
+    <TextView
+        android:id="@+id/textViewCurrentWorkout1RM"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="8dp"
+        android:textStyle="bold"
+        android:textColor="?android:attr/textColorPrimary"
+        app:layout_constraintTop_toBottomOf="@id/textViewCurrentWorkoutVolume"
+        app:layout_constraintBottom_toTopOf="@id/footer_container"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:text="Лучший 1RM: 0 кг" />
 
     <LinearLayout
         android:id="@+id/footer_container"
