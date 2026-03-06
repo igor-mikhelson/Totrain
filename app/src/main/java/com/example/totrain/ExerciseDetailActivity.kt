@@ -223,7 +223,7 @@ class ExerciseDetailActivity : AppCompatActivity(), ExerciseSetAdapter.OnItemInt
             if (actionMode == null) {
                 // ADDING A NEW SET
                 if (newRepsStr.isNotBlank() || newWeightStr.isNotBlank()) {
-                    shouldRefocusOnInsert = true
+                    shouldRefocusOnInsert = false
                     val set = ExerciseSet(
                         exerciseId = exerciseId,
                         reps = newRepsStr.toIntOrNull() ?: 0,
@@ -231,8 +231,11 @@ class ExerciseDetailActivity : AppCompatActivity(), ExerciseSetAdapter.OnItemInt
                         timestamp = System.currentTimeMillis()
                     )
                     workoutViewModel.insertExerciseSet(set)
+                    hideKeyboard()
                     repsEditText.text.clear()
                     weightEditText.text.clear()
+                    repsEditText.clearFocus()
+                    weightEditText.clearFocus()
                 }
             } else {
                 // UPDATING EXISTING SET(S)
